@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -206,6 +207,11 @@ func main() {
 	r.GET("/chat", func(c *gin.Context) {
 		serveChat(hub, c)
 	})
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // fallback for local testing
+	}
 
 	log.Println("Hallway Server running on :8080")
 	r.Run(":8080")
