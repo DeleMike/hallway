@@ -90,7 +90,6 @@ func (h *Hub) run() {
 
 		// ── send-out an inbound message to everyone ──
 		case message := <-h.broadcast:
-			// Only persist chat messages; ignore system/count frames.
 			if message.Type == ChatMessage {
 				h.history = append(h.history, message)
 				if len(h.history) > MaxHistory {
@@ -116,7 +115,6 @@ func (h *Hub) broadcastUserCount() {
 }
 
 // broadcastSystem sends a server-generated system announcement to all clients.
-// Must be called from a goroutine (not directly inside hub.run's select).
 func (h *Hub) broadcastSystem(text string) {
 	h.broadcast <- Message{
 		Type:    System,
@@ -125,10 +123,7 @@ func (h *Hub) broadcastSystem(text string) {
 }
 
 // readPump reads JSON frames from the WebSocket and forwards chat messages to
-// the hub. It exits (and triggers cleanup) on any read error, which covers:
-//   - Normal browser tab close / WebSocket close frame
-//   - Network drop
-//   - Postman disconnecting
+// the hub.
 func (c *Client) readPump(h *Hub) {
 	defer func() {
 		h.unregister <- c
@@ -142,9 +137,6 @@ func (c *Client) readPump(h *Hub) {
 		}
 
 		if msg.Type == ChatMessage {
-			// Normalise the payload: replace whatever username the client sent
-			// with the server-resolved name (handles anon users and prevents
-			// clients from impersonating others by spoofing the username field).
 			if payload, ok := msg.Payload.(map[string]any); ok {
 				payload["username"] = c.name
 				msg.Payload = payload
@@ -156,8 +148,7 @@ func (c *Client) readPump(h *Hub) {
 }
 
 // writePump drains the client's send channel and serialises each Message to
-// the WebSocket as JSON. It exits when the channel is closed by hub.run,
-// which happens during unregister.
+// the WebSocket as JSON.
 func (c *Client) writePump() {
 	defer c.conn.Close()
 
